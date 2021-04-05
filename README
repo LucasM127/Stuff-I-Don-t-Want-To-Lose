@@ -1,0 +1,21 @@
+Links I've found.
+
+Algorithms:
+http://www-cs-students.stanford.edu/~amitp/gameprog.html (algorithms. A* tilemap, etc...)
+paulbourke.net/geometry/polygonise/ (if ever want to try out marching cubes)
+https://blackpawn.com/texts/pointinpoly/ (fast point in triangle test using barycentric coordinates)
+
+PDF Online books:
+Procedural Content Generation in games... http://pcgbook.com/
+Game Programming Patterns
+natureofcode.com
+
+3d graphics
+arcsynthesis tutorials https://www.roiatalla.com/public/arcsynthesis/html/index.html (someone saved them)
+https://www.scratchapixel.com/
+
+Differential Equations
+https://tutorial.math.lamar.edu/Classes/DE/DE.aspx
+
+win32
+//was a relisoft/win32/index.html back in the day had bookmarked but gone now
