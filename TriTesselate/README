@@ -1,0 +1,4 @@
+Delaunay triangulation implementation.
+Using edge-flipping approach.
+
+Works.  But sorting algorithm could be refined with spatial hashing function that the delaunator github repository function uses.  So not as fast as that one yet.
