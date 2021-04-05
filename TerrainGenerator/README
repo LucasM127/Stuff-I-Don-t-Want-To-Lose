@@ -1,0 +1,5 @@
+LineGenerator Idea.
+Given a distribution of points, with two points chosen as a start and end point respectively.
+Incrementally joins each point to the line use edge swapping algorithm to create a line that visits all the points without self-intersecting.
+Chooses nearest point by perpendicular distance to line or if out of range of the line, using distance between points of the point and nearest endpoint.
+Shortest distance is used to choose which line segment to 'snap' to include the point.
