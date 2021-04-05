@@ -1,0 +1,67 @@
+ccw
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m: h2
+h0 e: 0
+h1 e: 1
+h2 e: 2
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m:  3
+i 3 e: 0 m:  2
+i 4 e: 2 m: h100
+i 5 e: 3 m: h100
+h0 e: 0
+h1 e: 1
+h2 e: 2
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m:  3
+i 3 e: 0 m:  2
+i 4 e: 2 m: h2
+i 5 e: 3 m: h3
+h0 e: 0
+h1 e: 1
+h2 e: 2
+h3 e: 3
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m:  3
+i 3 e: 0 m:  2
+i 4 e: 2 m: h2
+i 5 e: 3 m:  6
+i 6 e: 0 m:  5
+i 7 e: 3 m: h100
+i 8 e: 4 m: h100
+h0 e: 0
+h1 e: 1
+h2 e: 2
+h3 e: 3
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m:  3
+i 3 e: 0 m:  2
+i 4 e: 2 m: h2
+i 5 e: 3 m:  6
+i 6 e: 0 m:  5
+i 7 e: 3 m: h3
+i 8 e: 4 m: h4
+h0 e: 0
+h1 e: 1
+h2 e: 2
+h3 e: 3
+h4 e: 4
+i 0 e: 0 m: h0
+i 1 e: 1 m: h1
+i 2 e: 2 m:  3
+i 3 e: 0 m:  2
+i 4 e: 2 m: h2
+i 5 e: 3 m:  6
+i 6 e: 0 m:  5
+i 7 e: 3 m: h3
+i 8 e: 4 m: h4
+h0 e: 0
+h1 e: 1
+h2 e: 2
+h3 e: 3
+h4 e: 4

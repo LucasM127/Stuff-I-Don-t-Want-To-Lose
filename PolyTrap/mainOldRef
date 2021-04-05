@@ -1,0 +1,571 @@
+#include <SFML/Graphics.hpp>
+#include <algorithm>
+
+#include <iostream>
+#include <cmath>
+const float PI = 3.14159265f;
+
+#include "PolyLoader.hpp"
+
+typedef sf::Vector2f Point;
+typedef std::vector<Point> Polygon;
+
+enum VType
+{
+    MERGE,
+    SPLIT,
+    CONTINUE
+};
+
+struct LSeg
+{
+    Point left;
+    Point right;
+    unsigned int id;
+};
+
+struct Vertice
+{
+    VType vtype;
+    //LSeg a, b;
+    //unsigned int lastID, nextID;
+    unsigned int prevLSegID;
+    unsigned int nextLSegID;
+    unsigned int topID;
+    unsigned int bottomID;
+    float y_above, y_below;
+    float x;
+    bool isConvex;
+};
+
+struct Trapezoid
+{
+    //unsigned int topLSegid;
+    //unsigned int bottomLSegid;
+    LSeg *top;
+    LSeg *bottom;
+    unsigned int leftPtid;
+    unsigned int rightPtid;//points in the polygon... or their id values...?
+};
+
+struct TrapEdge
+{
+    LSeg *top;
+    LSeg *bottom;
+    //unsigned int topLSegID;
+    //unsigned int bottomLSegID;
+    Vertice v;
+    TrapEdge *next;
+    TrapEdge *last;
+};
+
+float getYIntValAtX(float x, LSeg &ls)
+{
+    float m = (ls.right.y - ls.left.y)/(ls.right.x - ls.left.x);
+    float b = ls.left.y - m*ls.left.x;
+    float y = m * x + b;
+    return y;
+}
+
+bool isConvex(const Point &a, const Point &b, const Point &c)
+{
+    sf::Vector2f v1 = a - b;
+    sf::Vector2f v2 = c - b;
+
+    float ang1 = atan2f(v1.y, v1.x) * 180.f / PI;
+    float ang2 = atan2f(v2.y, v2.x) * 180.f / PI;
+
+    float ang = ang2 - ang1;
+    if (ang < 0.f)
+        ang += 360.f;
+    //if (ccw)
+        //return ang;
+    return (360.f - ang) < 180.f;
+}
+
+class sfPoly : public sf::Drawable
+{
+public:
+    sfPoly(Polygon &P);
+private:
+    std::vector<sf::Vertex> m_vertices;
+    void draw(sf::RenderTarget &target, sf::RenderStates states) const override;
+};
+
+sfPoly::sfPoly(Polygon &P)
+{
+    sf::Vertex V;
+    V.color = sf::Color::Black;
+    for(auto p : P)
+    {
+        V.position = p;
+        m_vertices.push_back(V);
+    }
+    V.position = P[0];
+    m_vertices.push_back(V);
+}
+
+void sfPoly::draw(sf::RenderTarget &target, sf::RenderStates states) const
+{
+    target.draw(&m_vertices[0],m_vertices.size(),sf::LineStrip);
+}
+
+//maybe just go back to ear clipping...
+
+int main()
+{
+    Polygon P = 
+    {
+        {1.f,1.f},
+        {6.f,4.f},
+        {5.f,2.f},
+        {8.f,3.f},
+        {8.f,6.f},
+        {4.f,6.f},
+        {9.f,8.f},
+        {9.f,1.f}
+    };
+
+    //ok so now that it works... need an output file to read...
+    /*Polygon P = 
+    {
+        {1, 3},
+        {1, 4},
+        {2, 4},
+        {2, 5},
+        {3, 5},
+        {3, 6},
+        {5, 6},
+        {5, 5},
+        {4, 5},
+        {4, 4},
+        {5, 4},
+        {5, 3},
+        {4, 3},
+        {4, 2},
+        {5, 2},
+        {5, 1},
+        {3, 1},
+        {3, 3}
+    };*/
+    //CSHAPE
+    /*Polygon P = 
+    {
+        {1.f,0.5f},
+        {1.f,4.5f},
+        {4.f,4.5f},
+        {4.f,4.f},
+        {2.f,4.f},
+        {2.f,3.f},
+        {4.f,3.f},
+        {4.f,0.5f}
+    };*/
+
+    //Polygon P;
+    //PolyLoader ploader;
+    //ploader.loadPoly("data",P);
+    /*//ESHAPE
+    Polygon P = 
+    {
+        {1.f,0.5f},
+        {1.f,4.5f},
+        {4.f,4.5f},
+        {4.f,4.f},
+        {2.f,4.f},
+        {2.f,3.f},
+        {4.f,3.f},
+        {4.f,2.f},
+        {2.f,2.f},
+        {2.f,1.f},
+        {4.f,1.f},
+        {4.f,0.5f}
+    };*/
+    //reflex angle or concave?
+    /*Polygon P = 
+    {
+        {1.f,0.f},
+        {0.f,2.f},
+        {1.f,4.f},
+        {4.f,4.f},
+        {3.f,2.f},
+        {4.f,0.f}
+    };*/
+
+    /*Polygon P = 
+    {
+        {1.f,1.f},
+        {1.f,3.f},
+        {2.f,3.f},
+        {2.f,2.f},
+        {3.f,1.f}
+    }; //Good test for vertical lines
+    */
+    /*
+    Polygon P = 
+    {
+        {1.f,2.f},
+        {2.f,1.f},
+        {4.f,3.f},//test for vertical lines...
+        {3.f,4.f}
+    };*/
+
+    //list of line segments from i-i+1 with vertices sorted left right
+    std::vector<LSeg> pLSegs;
+    {
+    LSeg lseg;
+    Point a, b;
+    int n = P.size();
+    for(unsigned int i = 0; i<P.size();++i)
+    {
+        a = P[i];
+        b = P[(i+1)%n];
+        if(a.x < b.x)
+        {
+            lseg.left = a;
+            lseg.right = b;
+        }
+        else
+        {
+            lseg.left = b;
+            lseg.right = a;
+        }
+        lseg.id = i;
+        pLSegs.push_back(lseg);
+    }
+    }
+
+    std::vector<unsigned int> pIDs;
+    pIDs.resize(P.size());
+    for(unsigned int i = 0; i<P.size();i++) pIDs[i] = i;
+
+    auto isLessThan = [&](int a, int b)->bool
+    {
+        if(P[a].x < P[b].x) return true;
+        if(P[a].x == P[b].x)
+        {
+            if(P[a].y < P[b].y) return true;
+        }
+        return false;
+    };
+
+    std::sort(pIDs.begin(), pIDs.end(), isLessThan); //or use a lambda?
+
+    //go through our 'event' list
+    unsigned int counter = 0;
+    unsigned int curID = pIDs[counter];
+    
+    std::vector<LSeg> curLSegs;
+    LSeg lseg1, lseg2;
+    LSeg prevLS, nextLS;
+    Point curPoint;
+    float x_at;
+    std::vector<sf::Vertex> emitLines;
+    sf::Vertex V;
+    V.color = sf::Color::Green;
+    unsigned int numVertices = P.size();
+
+    std::vector<Vertice> curVertices;
+    std::vector<TrapEdge> lastTrapEdges;
+
+    auto addLine = [&](float x,float y1,float y2)
+    {
+        V.position.x = x;
+        V.position.y = y1;
+        emitLines.push_back(V);
+        V.position.y = y2;
+        emitLines.push_back(V);
+    };
+
+    auto insertLSeg = [&](LSeg &lseg)
+    {//reason they use a binary tree here...
+        //curLSegs.push_back(lseg);
+        float y_int;
+
+        if(curLSegs.size()==0)
+        {
+            curLSegs.push_back(lseg);
+            return;
+        }
+        for(unsigned int i = 0; i<curLSegs.size(); ++i)
+        {
+            LSeg &curLSeg = curLSegs[i];
+            y_int = getYIntValAtX(lseg.left.x,curLSeg);
+
+            if(curLSeg.left.y > y_int)//insertafter and done. or if no insert, push back
+            {
+                curLSegs.insert(curLSegs.begin()+i+1,lseg);
+                return;
+            }//increasing y order insertion...
+        }//not inserted anywhere? then push back
+        curLSegs.push_back(lseg);
+    };
+/*for(unsigned int i = 0;i<P.size();i++)//check if is convex ???
+{
+std::cout<<"in poly "<<i<<" "<<P[i].x<<" "<<P[i].y;
+if(isConvex(P[(i==0)?numVertices-1 : i-1],P[i],P[(i+1)%numVertices])) std::cout<<" and is convex"<<std::endl;
+else std::cout<<" and is concave"<<std::endl;
+}
+for(unsigned int i = 0;i<pIDs.size();i++)
+std::cout<<"at ctr "<<i<<" "<<P[pIDs[i]].x<<" "<<P[pIDs[i]].y<<std::endl;*/
+    //VType vtype;
+    while(true)
+    {
+        curVertices.clear();
+        /////Get Vertices at this point...
+        while (true)
+        {
+
+            bool isVertical = false;
+            curID = pIDs[counter];
+            curPoint = P[curID];
+            x_at = curPoint.x;
+            //float y_lowAt = curPoint.y;
+            //float y_highAt = curPoint.y;
+
+            Vertice V;
+            V.y_above = V.y_below = curPoint.y;
+            V.x = x_at;
+            V.topID = V.bottomID = curID;
+            //what id is it?  P[id] ???
+            //std::cout<<"Checking for vertice x y "<<curPoint.x<<" "<<curPoint.y<<" at counter "<<counter<<std::endl;
+
+            V.isConvex = isConvex(P[(curID == 0) ? numVertices - 1 : curID - 1], P[curID], P[(curID + 1) % numVertices]);
+
+            //get prevls and nextls, skip over vertical line segments!  don't forget to adjust counter?
+            int prevID = curID == 0 ? numVertices - 1 : curID - 1;
+            prevLS = pLSegs[prevID];
+            if (prevLS.left.x == prevLS.right.x) //skip it!
+            {
+                prevID = prevID == 0 ? numVertices - 1 : prevID - 1;
+                prevLS = pLSegs[prevID];
+                isVertical = true;
+                counter++; //counter skip it
+            }              //single skip only so far...
+            //same with next
+            nextLS = pLSegs[curID];
+            if (nextLS.left.x == nextLS.right.x)
+            {
+                curID = (curID + 1) % numVertices;
+                nextLS = pLSegs[curID];
+                isVertical = true;
+                counter++;
+            } //single skip only supported
+
+            V.prevLSegID = prevID;
+            V.nextLSegID = curID;
+
+            //isSplitVertex, add both lines
+            if (prevLS.right.x > x_at && nextLS.right.x > x_at)
+            {
+                V.vtype = VType::SPLIT;
+                insertLSeg(prevLS);//or the id???
+                insertLSeg(nextLS);
+            }
+            //next 2 cases it continues on...
+            else if (prevLS.right.x > x_at)
+            {
+                V.vtype = VType::CONTINUE;
+                insertLSeg(prevLS);
+            }
+            else if (nextLS.right.x > x_at)
+            {
+                V.vtype = VType::CONTINUE;
+                insertLSeg(nextLS);
+            }
+            else
+            {
+                V.vtype = VType::MERGE;
+            }
+
+            if (isVertical)
+            {
+                if (V.vtype == VType::SPLIT)
+                {
+                    if (prevLS.left.y > nextLS.left.y)
+                    {
+                        V.topID = prevID;
+                        V.bottomID = curID;
+                        V.y_above = prevLS.left.y;
+                        V.y_below = nextLS.left.y;
+                    }
+                    else
+                    {
+                        V.topID = curID;
+                        V.bottomID = prevID;
+                        V.y_below = prevLS.left.y;
+                        V.y_above = nextLS.left.y;
+                    }
+                }
+                else if (V.vtype == VType::MERGE)
+                {
+                    if (prevLS.right.y > nextLS.right.y)
+                    {
+                        V.topID = prevID;
+                        V.bottomID = curID;
+                        V.y_above = prevLS.right.y;
+                        V.y_below = nextLS.right.y;
+                    }
+                    else
+                    {
+                        V.topID = curID;
+                        V.bottomID = prevID;
+                        V.y_below = prevLS.right.y;
+                        V.y_above = nextLS.right.y;
+                    }
+                }
+                else
+                {
+                    LSeg leftLS;
+                    LSeg rightLS;
+                    if (prevLS.left.x < x_at)
+                    {
+                        leftLS = prevLS;
+                        rightLS = nextLS;
+                    }
+                    else
+                    {
+                        unsigned int tempID = prevID;
+                        prevID = curID;
+                        curID = tempID;
+                        leftLS = nextLS;
+                        rightLS = prevLS;
+                    }
+                    if (leftLS.right.y > rightLS.left.y)
+                    {
+                        V.topID = prevID;
+                        V.bottomID = curID;
+                        V.y_above = leftLS.right.y;
+                        V.y_below = rightLS.left.y;
+                    }
+                    else
+                    {
+                        V.topID = curID;
+                        V.bottomID = prevID;
+                        V.y_below = leftLS.right.y;
+                        V.y_above = rightLS.left.y;
+                    }
+                }
+            }
+
+            curVertices.push_back(V);
+
+            //check next one...
+            //std::cout<<"added a vertice with "<<V.y_below<<" "<<V.y_above<<std::endl;
+            if (counter < numVertices - 1)
+            {
+                if (P[pIDs[counter + 1]].x == x_at)
+                    counter++;
+                else
+                    break;
+            }
+            else
+                break;
+
+        } //end while(true) getVertices
+
+        //get Trapezoids, output Diagonals...
+        /*TrapEdge T;
+        
+        for(auto &V : curVertices)
+        {
+            T.top = nullptr;
+            T.bottom = nullptr;
+            float y_int;
+            float y_above = 999.f;
+            float y_below = -999.f;
+            //LSeg curLSeg;
+            if(V.vtype == VType::SPLIT && !V.isConvex)//starts a new trapezoid
+            {
+                T.last = nullptr;
+                T.next = nullptr;
+                T.top = &pLSegs[ V.topID ];
+                T.bottom = &pLSegs[ V.bottomID ];
+                T.v = V;
+            }
+            if(V.vtype == VType::CONTINUE)//continue a trapezoid list?
+            {
+                for (auto &lseg : curLSegs) //only need to test for the line above and below!... is sorted... so rewrite it here
+                {
+                    y_int = getYIntValAtX(x_at, lseg);
+                    if (y_int > V.y_above && y_above > y_int)
+                    {
+                        y_above = y_int;
+                        T.top = &pLSegs[lseg.id];
+                    }
+                    else if (y_int < V.y_below && y_below < y_int)
+                    {
+                        y_below = y_int;
+                        T.bottom = &pLSegs[lseg.id];
+                    }
+                } //want the closest one though... is sorted... hmmmmmmm
+            }
+        }*/
+
+        //if(curLSegs.size())
+        {
+            //check the neighbours for intersect point, choose closest above and below...
+            for(auto &V : curVertices)
+            {
+
+            float y_above = 12.f;
+            float y_below = 0.f;//bounds
+            float y_int;
+//create our trapezoids....
+            for(auto &lseg : curLSegs)//only need to test for the line above and below!... is sorted... so rewrite it here
+            {
+                y_int = getYIntValAtX(x_at,lseg);
+                if(y_int > V.y_above && y_above > y_int)
+                    y_above = y_int;
+                else if(y_int < V.y_below && y_below < y_int) y_below = y_int;
+            }//want the closest one though... is sorted... hmmmmmmm
+            //here is our issue, curPoint.y... can be a double point.
+            //curPointHigh curPointLow??? or curYHIgh
+            addLine(x_at, P[V.topID].y, y_above);
+            addLine(x_at, P[V.bottomID].y, y_below);
+            //std::cout<<curLSegs.size()<<" num lsegs"<<std::endl;
+            //std::cout<<V.y_below<<" "<< V.y_above <<" "<<y_below<<" "<<y_above<<std::endl;//twice?
+
+            }//end curVertices loop
+            //std::cout<<"done checking for "<<curVertices.size()<<" vertices with "<<curLSegs.size()<<" curlsegs"<<std::endl;
+            //last one should be 2!
+        }
+
+        //remove any linesegs that end here
+        for (unsigned int i = 0; i < curLSegs.size(); i++)
+        {
+            if (curLSegs[i].right.x == x_at)
+            {
+                curLSegs.erase(curLSegs.begin() + i);
+                i--;
+            }
+        }
+
+        counter++;
+        if(counter >= P.size() /*&& curLSegs.size()==0*/) break;
+    }
+
+    ////SFML STUFF BELOW///////////
+
+    sfPoly sfpoly(P);
+    sf::RenderWindow window(sf::VideoMode(500,500),"Poly");
+
+    sf::View view;
+    view.setCenter(6.f,6.f);
+    view.setSize(14.f,-14.f);
+    window.setView(view);
+
+    sf::Event event;
+    while(window.isOpen())
+    {
+        window.clear(sf::Color::White);
+        window.draw(sfpoly);
+        window.draw(&emitLines[0],emitLines.size(),sf::Lines);
+        window.display();
+
+        window.waitEvent(event);
+        if(event.type == sf::Event::Closed) window.close();
+        if(event.type == sf::Event::KeyPressed) window.close();
+    }
+
+    return 0;
+}

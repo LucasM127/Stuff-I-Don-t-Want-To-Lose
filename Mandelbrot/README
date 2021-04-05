@@ -1,0 +1,1 @@
+Basic mandelbrot viewer sfml using fragment shader.  Legacy style shader so only floating point precision.

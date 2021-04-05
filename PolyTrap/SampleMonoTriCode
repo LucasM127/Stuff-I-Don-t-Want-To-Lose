@@ -1,0 +1,242 @@
+#define _CRT_NONSTDC_NO_WARNINGS
+#include <glut.h>
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <Windows.h>
+using namespace std;
+
+
+#define MAX_COOR 25.0
+#define DELAY 200
+#define LINE_WIDTH 5
+#define POINT_SIZE 12
+
+#define coorToPos(x) ((GLfloat)(((x)-MAX_COOR)/MAX_COOR))
+#define cnv(x) coorToPos(x)
+
+typedef pair<int, int> pii;
+typedef pair<pii, int> piii;
+typedef vector<piii> vpiii;
+typedef vector<int> vint;
+
+#define ff first.first
+#define ss first.second
+#define tt second
+
+#define mp make_pair
+#define mmp(x,y,z) mp(mp(x,y),z)
+#define mpp(x,y) mmp(x.first,x.second,y)
+
+vpiii points;
+vpiii upper, lower;
+
+vpiii stack;
+vpiii list;
+void renderBitmapCharacter(float x, float y, float z, void *font, char *string){
+	char *c;
+	glRasterPos3f(x, y, z);
+	for (c = string; *c != '\0'; c++){
+		glutBitmapCharacter(font, *c);
+	}
+}
+void initPoints() {
+	pii data[] = { mp(3,34),mp(6,27),mp(10,42),mp(13,36),
+		mp(17,34),mp(18,20),mp(23,18),mp(26,20),
+		mp(28,31),mp(32,24),mp(33,36),mp(38,14),
+		mp(40,22),mp(43,27),mp(44,32),mp(49,34) };
+	int pos[] = { 0,1,0,0,0,1,1,1,0,1,0,1,1,1,0,0 };
+
+	points.clear();
+	upper.clear();
+	lower.clear();
+	int sz = sizeof(pos) / sizeof(*pos);
+	for (int i = 0; i < sz; i++) {
+		points.push_back(mpp(data[i],pos[i]));
+		if (!pos[i])
+			upper.push_back(mpp(data[i],pos[i]));
+		else
+			lower.push_back(mpp(data[i], pos[i]));
+		if (i == 0 || i == sz - 1)
+			lower.push_back(mpp(data[i], pos[i]));
+	}
+}
+void drawLine(piii& st, piii& en, float r, float g, float b) {
+	glBegin(GL_LINES);
+	glColor3f(r, g, b);
+	glVertex2f(cnv(st.ff), cnv(st.ss));
+	glVertex2f(cnv(en.ff), cnv(en.ss));
+	glEnd();
+	glFlush();
+	Sleep(DELAY);
+	list.push_back(st);
+	list.push_back(en);
+}
+void drawPoint(piii& pos, float r, float g, float b) {
+	glBegin(GL_POINTS);
+	glColor3f(r, g, b);
+	glVertex2f(cnv(pos.ff), cnv(pos.ss));
+	glEnd();
+	glFlush();
+	Sleep(DELAY);
+}
+void printAllPoints() {
+	for each (auto pt in points) {
+		for (int i = 0;i < 4; i++) {
+			glBegin(GL_POINTS);
+			glColor3f(1, (i % 2 ? 1 : 0), (i % 2 ? 1 : 0));
+			glVertex2f(cnv(pt.ff), cnv(pt.ss));
+			glEnd();
+			glFlush();
+			Sleep(DELAY);
+		}
+	}
+}
+void printUpperPoints() {
+	for (int i = 0; i < upper.size(); i++) {
+		drawPoint(upper[i], 0, 1, 0);
+		Sleep(DELAY);
+		if (i != upper.size() - 1) {
+			drawLine(upper[i], upper[i + 1], 0, 1, 0);
+		}
+	}
+}
+void printLowerPoints() {
+	for (int i = 0; i < lower.size(); i++) {
+		drawPoint(lower[i], 0, 0, 1);
+		if (i != lower.size() - 1) {
+			drawLine(lower[i], lower[i + 1], 0, 0, 1);
+		}
+	}
+}
+
+
+void printInsertStack(piii& a) {
+	stack.push_back(a);
+	for (int i = 0;i < 4; i++) {
+		glBegin(GL_POINTS);
+		glColor3f(1, (i % 2 ? 0.5 : 0), (i % 2 ? 1 : 0));
+		glVertex2f(cnv(a.ff),cnv(a.ss));
+		glEnd();
+		glFlush();
+		Sleep(DELAY);
+	}
+}
+piii printPopStack() {
+	for (int i = 0;i < 4; i++) {
+		glBegin(GL_POINTS);
+		glColor3f((i % 2 ? 1 : 0), (i % 2 ? 1 : 0), (i % 2 ? 1 : 0));
+		glVertex2f(cnv(stack.back().ff), cnv(stack.back().ss));
+		glEnd();
+		glFlush();
+		Sleep(DELAY);
+	}
+	piii res = stack.back();
+	stack.pop_back();
+	return res;
+}
+
+void printStackStauts() {
+	printf("[STACK] : top >> ");
+	for (int i = stack.size() - 1; i >= 0; i--) {
+		printf("(%d, %d)", stack[i].ff, stack[i].ss);
+		if (0 != i)
+			printf(", ");
+		else
+			printf("\n");
+	}
+}
+
+void printListStauts() {
+	printf("[LIST ] : ");
+	for (int i = 0; i < list.size(); i += 2) {
+		printf("{(%d, %d)-(%d, %d)}", list[i].ff, list[i].ss, list[i + 1].ff,list[i+1].ss);
+		if (i+1 != list.size()-1)
+			printf(", ");
+		else
+			printf("\n");
+	}
+}
+
+void visualizeTriangulation() {
+	printInsertStack(points[0]);
+	printInsertStack(points[1]);
+	//if you want to print all lines, remove it
+	list.clear();
+	for (int i = 2; i < points.size() - 1; i++) {
+		piii cur = points[i];
+		drawPoint(cur, 0.7, 0.7, 0.7);
+		if (stack.back().tt == cur.tt) {
+			// if they are in same chain
+			printPopStack();
+			piii prev;
+			while (!stack.empty()) {
+				prev = printPopStack();
+				drawLine(prev, cur, 1, 0, 0);
+			}
+			printInsertStack(prev);
+			printInsertStack(points[i]);
+		}
+		else {
+			// otherwise
+			vpiii temp;
+			while (!stack.empty() && stack.size()!=1) {
+				piii prev = printPopStack();
+				temp.push_back(prev);
+				drawLine(prev, cur, 1, 0, 0);
+			}
+			printPopStack();
+			for(int j = temp.size()-1; j >=0 ; j--){
+				printInsertStack(temp[j]);
+			}
+			printInsertStack(points[i]);
+		}
+		printf("\nCurrent (%d, %d)\n", cur.ff, cur.ss);
+		printStackStauts();
+		printListStauts();
+
+	}
+}
+
+void Display() {
+	glClear(GL_COLOR_BUFFER_BIT);
+	glPointSize(POINT_SIZE);
+	glLineWidth(LINE_WIDTH);
+	printAllPoints();
+	printUpperPoints();
+	printLowerPoints();
+	visualizeTriangulation();
+	Sleep(10000);
+	exit(0);
+}
+
+void initDisplay() {
+	glutInitWindowPosition(0, 0);
+	glutInitWindowSize(640, 640);
+	glutCreateWindow("Visualization of triangluation");
+}
+void antiAliasing() {
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_POINT_SMOOTH);
+}
+int main() {
+	printf("!!! Readme !!!\n\n Meanings \n");
+	printf("[POINT] : Green(upper_chain), Blue(lower_chain), White(Out the Stack), Pink(In the stack)\n");
+	printf("[LINE ] : Green(upper_chain), Blue(lower_chain), Red(diagonal) \n");
+	printf("\n\n Please, see the status of Stack & List by Console!\n");
+
+
+	printf("\n\n Program will be start 3 seconds later.. \n");
+	
+	Sleep(3000);
+
+	initDisplay();
+	antiAliasing();
+	glutDisplayFunc(Display);
+
+	initPoints();
+	glutMainLoop();
+
+	return 0;
+}
