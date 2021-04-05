@@ -1,0 +1,14 @@
+#include <iostream>
+
+struct cell
+{
+    bool active;
+    bool ground;
+    float bias[4];//directions
+    
+};
+
+int main()
+{
+    return 0;
+}
